@@ -29,7 +29,7 @@ type Config struct {
 func Load() (*Config, error) {
 	// Create a new Config with default values
 	cfg := &Config{
-		DatabaseURL: 				getEnv("DATABASE_URL", "postgres://user:password@localhost:5432/dbname"),
+		DatabaseURL: 				getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5432/aster?sslmode=disable"),
 		APIPort:     				getEnvInt("API_PORT", 8080),
 		WorkerPoolSize: 		getEnvInt("WORKER_POOL_SIZE", 5),
 		LogLevel:    				getEnv("LOG_LEVEL", "info"),
