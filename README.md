@@ -1,6 +1,5 @@
 # Aster Scheduler
 
-[![Build Status](https://github.com/Franklyne-kibet/aster-scheduler/workflows/CI/badge.svg)](https://github.com/Franklyne-kibet/aster-scheduler/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Franklyne-kibet/aster-scheduler)](https://goreportcard.com/report/github.com/Franklyne-kibet/aster-scheduler)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org/)
