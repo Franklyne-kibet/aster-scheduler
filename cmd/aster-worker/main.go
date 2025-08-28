@@ -2,9 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
-	"fmt"
 	"os/signal"
 	"syscall"
 	"time"

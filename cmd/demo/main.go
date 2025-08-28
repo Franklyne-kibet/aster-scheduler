@@ -48,7 +48,7 @@ func main() {
 func runCRUDDemo(ctx context.Context, store *store.JobStore) error {
 	// 1. CREATE - Create a new job
 	fmt.Println("\n1. Creating a new job...")
-	
+
 	timeout := 5 * time.Minute
 	job := &types.Job{
 		ID:          uuid.New(),
@@ -74,7 +74,7 @@ func runCRUDDemo(ctx context.Context, store *store.JobStore) error {
 
 	// 2. READ - Get the job back
 	fmt.Println("\n2. Reading the job back...")
-	
+
 	retrieved, err := store.GetJob(ctx, job.ID)
 	if err != nil {
 		return fmt.Errorf("failed to get job: %w", err)
@@ -93,7 +93,7 @@ func runCRUDDemo(ctx context.Context, store *store.JobStore) error {
 
 	// 3. UPDATE - Modify the job
 	fmt.Println("\n3. Updating the job...")
-	
+
 	retrieved.Description = "Updated demo job"
 	retrieved.Command = "curl"
 	retrieved.Args = []string{"-s", "https://httpbin.org/json"}
@@ -119,7 +119,7 @@ func runCRUDDemo(ctx context.Context, store *store.JobStore) error {
 
 	// 4. LIST - Show all jobs
 	fmt.Println("\n4. Listing all jobs...")
-	
+
 	jobs, err := store.ListJobs(ctx, 5, 0) // Get first 5 jobs
 	if err != nil {
 		return fmt.Errorf("failed to list jobs: %w", err)
@@ -127,13 +127,13 @@ func runCRUDDemo(ctx context.Context, store *store.JobStore) error {
 
 	fmt.Printf("Found %d jobs:\n", len(jobs))
 	for i, j := range jobs {
-		fmt.Printf("%d. %s (%s) - %s\n", 
+		fmt.Printf("%d. %s (%s) - %s\n",
 			i+1, j.Name, j.Status, j.Command)
 	}
 
 	// 5. DELETE - Remove the job
 	fmt.Println("\n5. Deleting the job...")
-	
+
 	if err := store.DeleteJob(ctx, job.ID); err != nil {
 		return fmt.Errorf("failed to delete job: %w", err)
 	}
