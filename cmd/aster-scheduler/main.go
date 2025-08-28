@@ -8,13 +8,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Franklyne-kibet/aster-scheduler/internal/api"
+	"go.uber.org/zap"
+
 	"github.com/Franklyne-kibet/aster-scheduler/internal/config"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/db"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/db/store"
-	"go.uber.org/zap"
+	"github.com/Franklyne-kibet/aster-scheduler/internal/scheduler"
 )
-
 
 func main() {
 	// Load configuration
@@ -30,8 +30,7 @@ func main() {
 	}
 	defer logger.Sync()
 
-	logger.Info("Starting Aster API Server",
-		zap.Int("port", cfg.APIPort),
+	logger.Info("Starting Aster Scheduler",
 		zap.String("log_level", cfg.LogLevel))
 
 	// Connect to database
@@ -44,17 +43,19 @@ func main() {
 	}
 	defer database.Close()
 
-	// Create stores
+	// Create job store
 	jobStore := store.NewJobStore(database.Pool())
-	runStore := store.NewRunStore(database.Pool())
 
-	// Create and start API server
-	server := api.NewServer(cfg.APIPort, jobStore, runStore, logger)
+	// Create scheduler
+	sched := scheduler.NewScheduler(jobStore, logger)
 
-	// Start server in goroutine
+	// Start scheduler in goroutine
+	ctx, cancel = context.WithCancel(context.Background())
+	defer cancel()
+
 	go func() {
-		if err := server.Start(); err != nil {
-			logger.Fatal("Server failed to start", zap.Error(err))
+		if err := sched.Run(ctx); err != nil {
+			logger.Error("Scheduler error", zap.Error(err))
 		}
 	}()
 
@@ -63,15 +64,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	logger.Info("Server is shutting down...")
+	logger.Info("Scheduler is shutting down...")
+	cancel() // Cancel context to stop scheduler
 
-	// Graceful shutdown with timeout
-	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Fatal("Server forced to shutdown", zap.Error(err))
-	}
-
-	logger.Info("Server exited")
+	logger.Info("Scheduler exited")
 }
