@@ -485,34 +485,85 @@ make dev
 
 The Makefile provides convenient commands for common development tasks:
 
+#### Build and Run
+
 - `make build` - Build all service binaries
-- `make test` - Run the complete test suite
-- `make test-coverage` - Run tests with coverage report
-- `make lint` - Run code linting and formatting checks
 - `make migrate` - Apply database migrations
 - `make setup-db` - Initialize development database
 - `make run-demo` - Run basic functionality demo
 - `make full-demo` - Run comprehensive system demo
 - `make clean` - Remove build artifacts and containers
-- `make dev` - Complete development workflow (build, test, lint)
 
-### Testing
+#### Testing
 
-The project includes comprehensive tests for all components:
+- `make test` - Run the complete test suite
+- `make test-coverage` - Run tests with coverage report and HTML output
+
+#### Code Quality and Formatting
+
+- `make format` - Format Go code using `go fmt` and `goimports`
+- `make check-format` - Check if code is properly formatted (CI-friendly)
+- `make vet` - Run `go vet` for code correctness
+- `make tidy` - Clean up `go.mod` and `go.sum`
+- `make quality` - Run format + vet + tidy (quick quality check)
+- `make pre-commit` - Run format + quality + tests (before committing)
+
+#### Development Workflows
+
+- `make dev` - Complete development workflow (format + migrate + test + build + demo)
+
+#### Individual Services
+
+- `make run-api` - Start the API server
+- `make run-scheduler` - Start the scheduler
+- `make run-worker` - Start a worker
+
+### Code Formatting and Quality
+
+The project follows strict Go formatting standards and provides automated tools to maintain code quality:
+
+#### Formatting Your Code
 
 ```bash
-# Run all tests
-make test
+# Format all Go code (runs go fmt + goimports)
+make format
 
-# Run tests for specific package
-go test -v ./internal/scheduler
-go test -v ./internal/worker
-go test -v ./internal/api
+# Check if code is properly formatted (useful for CI)
+make check-format
 
-# Run tests with coverage
-go test -v -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
+# Run go vet for code correctness
+make vet
+
+# Clean up go.mod and go.sum
+make tidy
+
+# Run all quality checks at once
+make quality
 ```
+
+#### Pre-commit Workflow
+
+```bash
+# Run formatting, quality checks, and tests before committing
+make pre-commit
+```
+
+#### Formatting Standards
+
+The project uses:
+
+- **`go fmt`** - Standard Go formatting (indentation, spacing, braces)
+- **`goimports`** - Automatic import organization (standard → third-party → local)
+- **`go vet`** - Static analysis for common Go issues
+- **`go mod tidy`** - Clean and organize module dependencies
+
+#### CI Integration
+
+For continuous integration, use `make check-format` which will:
+
+- Exit with code 0 if all files are properly formatted
+- Exit with code 1 and list problematic files if formatting is needed
+- Automatically install required tools if missing
 
 ## Operational Concerns
 

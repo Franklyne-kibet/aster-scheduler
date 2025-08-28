@@ -1,4 +1,4 @@
-.PHONY: build test run-demo setup-db migrate clean dev full-demo
+.PHONY: build test run-demo setup-db migrate clean dev full-demo format check-format vet tidy test-coverage quality pre-commit
 
 # Load environment variables from .env
 include .env
@@ -50,10 +50,70 @@ run-scheduler: migrate build
 run-worker: migrate build
 	./bin/aster-worker
 
-# Development workflow
-dev: migrate test build run-demo
+# Development workflow with formatting
+dev: format migrate test build run-demo
 
 # Clean up everything
 clean:
 	rm -rf bin/
 	docker-compose down -v
+
+# Code Formatting (Go Standards)
+# Format Go code using standard Go tools
+format:
+	@echo "Formatting Go code..."
+	@go fmt ./...
+	@if command -v goimports >/dev/null 2>&1; then \
+		goimports -w .; \
+	else \
+		echo "Installing goimports..."; \
+		go install golang.org/x/tools/cmd/goimports@latest; \
+		$(HOME)/go/bin/goimports -w .; \
+	fi
+	@echo "Code formatting completed"
+
+# Check if code is properly formatted (for CI)
+check-format:
+	@echo "Checking code formatting..."
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "The following files are not properly formatted:"; \
+		gofmt -l .; \
+		echo "Run 'make format' to fix formatting issues."; \
+		exit 1; \
+	fi
+	@if [ -f $(HOME)/go/bin/goimports ]; then \
+		if [ -n "$$($(HOME)/go/bin/goimports -l .)" ]; then \
+			echo "The following files have import issues:"; \
+			$(HOME)/go/bin/goimports -l .; \
+			echo "Run 'make format' to fix import issues."; \
+			exit 1; \
+		fi \
+	fi
+	@echo "All files are properly formatted"
+
+# Run go vet for code correctness
+vet:
+	@echo "Running go vet..."
+	@go vet ./...
+	@echo "go vet passed"
+
+# Tidy up go modules
+tidy:
+	@echo "Tidying go modules..."
+	@go mod tidy
+	@echo "go mod tidy completed"
+
+# Run tests with coverage report
+test-coverage:
+	@echo "Running tests with coverage..."
+	@go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+
+# Quick quality check (format + vet + tidy)
+quality: format vet tidy
+	@echo "Code quality check completed"
+
+# Pre-commit hook (run before committing code)
+pre-commit: format quality test
+	@echo "Pre-commit checks completed successfully"
