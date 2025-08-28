@@ -1,6 +1,29 @@
 # Aster Scheduler
 
+[![Build Status](https://github.com/Franklyne-kibet/aster-scheduler/workflows/CI/badge.svg)](https://github.com/Franklyne-kibet/aster-scheduler/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Franklyne-kibet/aster-scheduler)](https://goreportcard.com/report/github.com/Franklyne-kibet/aster-scheduler)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-336791?logo=postgresql)](https://www.postgresql.org/)
+
 A distributed, fault-tolerant task scheduler with cron semantics, retries, job dependencies, and horizontally scalable worker pools.
+
+## Table of Contents
+
+- [Features](#features)
+- [Architecture](#architecture)
+- [System Flow](#system-flow)
+- [Flow Phases](#flow-phases)
+- [Data Models](#data-models)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Usage Examples](#usage-examples)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Operational Concerns](#operational-concerns)
+- [Security Considerations](#security-considerations)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
@@ -297,7 +320,7 @@ The REST API provides comprehensive job and run management capabilities. All end
 - **Request Body**: Partial or complete job object
 - **Response**: 200 OK with updated job object, or 404 Not Found
 
-### #Delete Job
+### Delete Job
 
 - **DELETE** `/api/v1/jobs/{id}`
 - **Description**: Remove job and all associated runs
