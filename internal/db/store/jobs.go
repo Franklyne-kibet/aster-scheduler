@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -223,7 +224,6 @@ func (s *JobStore) UpdateJob(ctx context.Context, job *types.Job) error {
 	return nil
 }
 
-
 // DeleteJob removes a job from the database
 func (s *JobStore) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM jobs WHERE id = $1`
@@ -236,5 +236,87 @@ func (s *JobStore) DeleteJob(ctx context.Context, id uuid.UUID) error {
 	if result.RowsAffected() == 0 {
 		return fmt.Errorf("job not found")
 	}
+	return nil
+}
+
+// GetActiveJobsDue returns active jobs that should run before the given time
+func (s *JobStore) GetActiveJobsDue(ctx context.Context, before time.Time) ([]*types.Job, error) {
+	query := `
+		SELECT id, name, description, cron_expr, command, args, env,
+		  	status, max_retries, timeout, created_at, updated_at, next_run_at
+		FROM jobs
+		WHERE status = $1 
+		  AND (next_run_at IS NULL OR next_run_at <= $2)
+		ORDER BY next_run_at ASC
+	`
+
+	rows, err := s.pool.Query(ctx, query, types.JobStatusActive, before)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query due jobs: %w", err)
+	}
+	defer rows.Close()
+
+	var jobs []*types.Job
+
+	for rows.Next() {
+		var job types.Job
+		var argsJSON, envJSON []byte
+
+		err := rows.Scan(
+			&job.ID,
+			&job.Name, 
+			&job.Description,
+			&job.CronExpr,
+			&job.Command,
+			&argsJSON,
+			&envJSON,
+			&job.Status,
+			&job.MaxRetries,
+			&job.Timeout,
+			&job.CreatedAt,
+			&job.UpdatedAt,
+			&job.NextRunAt,
+		)
+
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan job: %w", err)
+		}
+
+		// Convert JSON to GO types
+		if err := json.Unmarshal(argsJSON, &job.Args); err != nil {
+			return nil, fmt.Errorf("faiiled to unmarshal args: %w", err)
+		}
+
+		if err := json.Unmarshal(envJSON, &job.Env); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal env: %w", err)
+		}
+
+		jobs = append(jobs, &job)
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", rows.Err())
+	}
+
+	return jobs, nil
+}
+
+// UpdateJobNextRunAt updates when a job should next run
+func (s *JobStore) UpdateJobNextRunAt(ctx context.Context, jobID uuid.UUID, nextRunAt *time.Time) error {
+	query := `
+		UPDATE jobs 
+		SET next_run_at = $2, updated_at = NOW()
+		WHERE id = $1
+	`
+
+	result, err := s.pool.Exec(ctx, query, jobID, nextRunAt)
+	if err != nil {
+		return fmt.Errorf("failed to update job next run time: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return fmt.Errorf("job not found")
+	}
+
 	return nil
 }
