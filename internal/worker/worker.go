@@ -14,11 +14,11 @@ import (
 
 // Worker polls for scheduled runs and executes them
 type Worker struct {
-	id        string // Unique worker identifier
-	jobStore  *store.JobStore
-	runStore  *store.RunStore
-	executor  *executor.Executor
-	logger    *zap.Logger
+	id       string // Unique worker identifier
+	jobStore *store.JobStore
+	runStore *store.RunStore
+	executor *executor.Executor
+	logger   *zap.Logger
 
 	// Configuration
 	pollInterval time.Duration

@@ -20,7 +20,7 @@ func setupWorkerTest(t *testing.T) (*Worker, *store.JobStore, *store.RunStore) {
 
 	// Connect to test database
 	databaseURL := "postgres://postgres:password@localhost:5432/aster?sslmode=disable"
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -56,11 +56,11 @@ func TestWorker_ExecuteRun(t *testing.T) {
 
 	// Create a test job
 	job := &types.Job{
-		ID:       uuid.New(),
-		Name:     "test_worker_echo",
-		Command:  "echo",
-		Args:     []string{"worker", "test"},
-		Status:   types.JobStatusActive,
+		ID:      uuid.New(),
+		Name:    "test_worker_echo",
+		Command: "echo",
+		Args:    []string{"worker", "test"},
+		Status:  types.JobStatusActive,
 	}
 
 	if err := jobStore.CreateJob(ctx, job); err != nil {
@@ -122,11 +122,11 @@ func TestWorker_CheckAndExecuteRuns(t *testing.T) {
 	// Create multiple test jobs and runs
 	for i := 0; i < 3; i++ {
 		job := &types.Job{
-			ID:       uuid.New(),
-			Name:     fmt.Sprintf("test_worker_job_%d", i),
-			Command:  "echo",
-			Args:     []string{fmt.Sprintf("job_%d", i)},
-			Status:   types.JobStatusActive,
+			ID:      uuid.New(),
+			Name:    fmt.Sprintf("test_worker_job_%d", i),
+			Command: "echo",
+			Args:    []string{fmt.Sprintf("job_%d", i)},
+			Status:  types.JobStatusActive,
 		}
 
 		if err := jobStore.CreateJob(ctx, job); err != nil {
