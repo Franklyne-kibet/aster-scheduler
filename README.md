@@ -1,6 +1,6 @@
 # Aster Scheduler
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/Franklyne-kibet/aster-scheduler)](https://goreportcard.com/report/github.com/Franklyne-kibet/aster-scheduler)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Franklyne-kibet/aster-scheduler?refresh=1)](https://goreportcard.com/report/github.com/Franklyne-kibet/aster-scheduler)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-336791?logo=postgresql)](https://www.postgresql.org/)
