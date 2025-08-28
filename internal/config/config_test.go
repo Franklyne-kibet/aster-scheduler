@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 // TestLoad tests the Load function of the config package
 func TestLoad(t *testing.T) {
 	// Test with default values

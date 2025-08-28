@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 type Config struct {
 	// Database connection string
 	DatabaseURL string
@@ -29,11 +28,11 @@ type Config struct {
 func Load() (*Config, error) {
 	// Create a new Config with default values
 	cfg := &Config{
-		DatabaseURL: 				getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5432/aster?sslmode=disable"),
-		APIPort:     				getEnvInt("API_PORT", 8080),
-		WorkerPoolSize: 		getEnvInt("WORKER_POOL_SIZE", 5),
-		LogLevel:    				getEnv("LOG_LEVEL", "info"),
-		LeaderElectionTTL: 	getEnvDuration("LEADER_ELECTION_TTL", 30*time.Second),
+		DatabaseURL:       getEnv("DATABASE_URL", "postgres://postgres:password@localhost:5432/aster?sslmode=disable"),
+		APIPort:           getEnvInt("API_PORT", 8080),
+		WorkerPoolSize:    getEnvInt("WORKER_POOL_SIZE", 5),
+		LogLevel:          getEnv("LOG_LEVEL", "info"),
+		LeaderElectionTTL: getEnvDuration("LEADER_ELECTION_TTL", 30*time.Second),
 	}
 	// Validate required fields
 	if cfg.DatabaseURL == "" {
