@@ -50,11 +50,11 @@ type Run struct {
 	ID uuid.UUID `json:"id" db:"id"`
 	JobID uuid.UUID `json:"job_id" db:"job_id"`
 	Status RunStatus `json:"status" db:"status"`
-	AttemotNum int `json:"attempt_num" db:"attempt_num"`
+	AttemptNum int `json:"attempt_num" db:"attempt_num"`
 	ScheduledAt time.Time `json:"scheduled_at" db:"scheduled_at"`
 	StartedAt *time.Time `json:"started_at,omitempty" db:"started_at"`
 	FinishedAt *time.Time `json:"finished_at,omitempty" db:"finished_at"`
-	OutPut string `json:"output" db:"output"`
+	Output string `json:"output" db:"output"`
 	ErrorMsg *string `json:"error_msg,omitempty" db:"error_msg"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
