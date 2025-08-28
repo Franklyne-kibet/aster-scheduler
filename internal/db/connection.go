@@ -21,9 +21,9 @@ func NewConnection(ctx context.Context, databaseURL string) (*DB, error) {
 	}
 
 	// Configure connection pool settings
-	config.MaxConns = 10 // Maximum 10 connections in pool
-	config.MinConns = 2  // Keep at least 2 connections open
-	config.MaxConnIdleTime = time.Hour // Recycle connections every hour
+	config.MaxConns = 10                    // Maximum 10 connections in pool
+	config.MinConns = 2                     // Keep at least 2 connections open
+	config.MaxConnIdleTime = time.Hour      // Recycle connections every hour
 	config.MaxConnLifetime = 30 * time.Hour // Close idle connections after 30 min
 
 	// Create the connection pool
