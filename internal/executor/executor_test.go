@@ -8,8 +8,8 @@ import (
 
 	"go.uber.org/zap/zaptest"
 
-	"github.com/google/uuid"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/types"
+	"github.com/google/uuid"
 )
 
 func TestExecutor_Execute_Success(t *testing.T) {
@@ -146,7 +146,7 @@ func TestExecutor_Execute_Cancellation(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// Cancel after 100ms
 	go func() {
 		time.Sleep(100 * time.Millisecond)
@@ -295,7 +295,7 @@ func TestExecutor_Execute_LargeOutput(t *testing.T) {
 // Helper function for comparing output with whitespace differences
 func containsIgnoreWhitespace(output, expected string) bool {
 	// Simple contains check, ignoring exact whitespace
-	return len(output) > 0 && len(expected) > 0 && 
-	(output == expected || 
-	strings.Contains(strings.TrimSpace(output), strings.TrimSpace(expected)))
+	return len(output) > 0 && len(expected) > 0 &&
+		(output == expected ||
+			strings.Contains(strings.TrimSpace(output), strings.TrimSpace(expected)))
 }

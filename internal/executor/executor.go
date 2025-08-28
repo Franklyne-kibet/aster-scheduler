@@ -13,7 +13,7 @@ import (
 )
 
 type ExecutionResult struct {
-	Status types.RunStatus
+	Status    types.RunStatus
 	Output    string
 	Error     error
 	StartTime time.Time
