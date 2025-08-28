@@ -17,12 +17,12 @@ func NewCronParser() *CronParser {
 	// Create parser that supports seconds (optional), minutes, hours, day of month, month, day of week
 	parser := cron.NewParser(
 		cron.SecondOptional | // Allow optional seconds field
-		cron.Minute | // Required minutes field
-		cron.Hour | // Required hours field  
-		cron.Dom | // Day of month
-		cron.Month | // Month
-		cron.Dow | // Day of week
-		cron.Descriptor, // Allow @yearly, @monthly,
+			cron.Minute | // Required minutes field
+			cron.Hour | // Required hours field
+			cron.Dom | // Day of month
+			cron.Month | // Month
+			cron.Dow | // Day of week
+			cron.Descriptor, // Allow @yearly, @monthly,
 	)
 
 	return &CronParser{
@@ -71,7 +71,7 @@ func (cp *CronParser) GetNextNRuns(cronExpr string, fromTime time.Time, n int) (
 
 	for range n {
 		nextRun := schedule.Next(currentTime)
-		if nextRun.IsZero(){
+		if nextRun.IsZero() {
 			break // No more runs
 		}
 		nextRuns = append(nextRuns, nextRun)

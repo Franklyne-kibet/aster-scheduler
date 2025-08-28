@@ -12,10 +12,10 @@ import (
 
 // Scheduler is responsible for finding due jobs and scheduling them for execution
 type Scheduler struct {
-	jobStore		*store.JobStore
-	runStore		*store.RunStore
-	cronParser	*CronParser
-	logger			*zap.Logger
+	jobStore   *store.JobStore
+	runStore   *store.RunStore
+	cronParser *CronParser
+	logger     *zap.Logger
 
 	// Configuration
 	checkInterval time.Duration
@@ -24,11 +24,11 @@ type Scheduler struct {
 // NewScheduler created a new scheduler instance
 func NewScheduler(jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Scheduler {
 	return &Scheduler{
-		jobStore: 			jobStore,
-		runStore: 			runStore,
-		cronParser: 		NewCronParser(),
-		logger: 				logger,
-		checkInterval: 	30 * time.Second, // Check every 30 seconds by default
+		jobStore:      jobStore,
+		runStore:      runStore,
+		cronParser:    NewCronParser(),
+		logger:        logger,
+		checkInterval: 30 * time.Second, // Check every 30 seconds by default
 	}
 }
 
@@ -51,16 +51,16 @@ func (s *Scheduler) Run(ctx context.Context) error {
 
 	for {
 		select {
-			case <-ctx.Done():
-				s.logger.Info("Scheduler stopping due to context cancellation")
-				return ctx.Err()
+		case <-ctx.Done():
+			s.logger.Info("Scheduler stopping due to context cancellation")
+			return ctx.Err()
 
-			case <-ticker.C:
-				// Time to check for due jobs
-				if err := s.checkAndScheduleDueJobs(ctx); err != nil {
-					s.logger.Error("Error checking for due jobs", zap.Error(err))
-					// Don't return error - keep running
-				}
+		case <-ticker.C:
+			// Time to check for due jobs
+			if err := s.checkAndScheduleDueJobs(ctx); err != nil {
+				s.logger.Error("Error checking for due jobs", zap.Error(err))
+				// Don't return error - keep running
+			}
 		}
 	}
 }
@@ -81,10 +81,10 @@ func (s *Scheduler) checkAndScheduleDueJobs(ctx context.Context) error {
 
 	for _, job := range dueJobs {
 		if err := s.scheduleJob(ctx, job, now); err != nil {
-		s.logger.Error("Failed to schedule job", 
-			zap.String("job_id", job.ID.String()),
-			zap.String("job_name", job.Name),
-			zap.Error(err))
+			s.logger.Error("Failed to schedule job",
+				zap.String("job_id", job.ID.String()),
+				zap.String("job_name", job.Name),
+				zap.Error(err))
 			// Continue with other jobs even if one fails
 			continue
 		}

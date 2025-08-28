@@ -12,11 +12,11 @@ func TestCronParser_ParserAndNext(t *testing.T) {
 	testTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name			string
-		cronExpr 	string
-		want 			time.Time
-		wantErr		bool
-	} {
+		name     string
+		cronExpr string
+		want     time.Time
+		wantErr  bool
+	}{
 		{
 			name:     "every minute",
 			cronExpr: "* * * * *",
@@ -31,7 +31,7 @@ func TestCronParser_ParserAndNext(t *testing.T) {
 		},
 		{
 			name:     "every 5 minutes",
-			cronExpr: "*/5 * * * *", 
+			cronExpr: "*/5 * * * *",
 			want:     time.Date(2024, 1, 1, 12, 5, 0, 0, time.UTC),
 			wantErr:  false,
 		},
@@ -81,7 +81,7 @@ func TestCronParser_Validate(t *testing.T) {
 
 	validExpressions := []string{
 		"* * * * *",
-		"0 0 * * *", 
+		"0 0 * * *",
 		"*/5 * * * *",
 		"@hourly",
 		"@daily",
@@ -89,7 +89,7 @@ func TestCronParser_Validate(t *testing.T) {
 	}
 
 	for _, expr := range validExpressions {
-		t.Run("valid_"+expr, func(t *testing.T){
+		t.Run("valid_"+expr, func(t *testing.T) {
 			if err := parser.Validate(expr); err != nil {
 				t.Errorf("Expected '%s' to be valid, got error: %v", expr, err)
 			}
@@ -98,11 +98,11 @@ func TestCronParser_Validate(t *testing.T) {
 
 	invalidExpressions := []string{
 		"invalid",
-		"60 * * * *",    // Invalid minute (60)
-		"* 25 * * *",    // Invalid hour (25) 
-		"* * 32 * *",    // Invalid day (32)
-		"* * * 13 *",    // Invalid month (13)
-		"* * * * 8",     // Invalid day of week (8)
+		"60 * * * *", // Invalid minute (60)
+		"* 25 * * *", // Invalid hour (25)
+		"* * 32 * *", // Invalid day (32)
+		"* * * 13 *", // Invalid month (13)
+		"* * * * 8",  // Invalid day of week (8)
 	}
 
 	for _, expr := range invalidExpressions {
