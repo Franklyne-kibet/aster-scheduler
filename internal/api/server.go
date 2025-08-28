@@ -28,7 +28,7 @@ func NewServer(port int, jobStore *store.JobStore, runStore *store.RunStore, log
 
 	// Create router
 	router := mux.NewRouter()
-	
+
 	// Add middleware
 	router.Use(loggingMiddleware(logger))
 	router.Use(corsMiddleware)
@@ -84,13 +84,13 @@ func loggingMiddleware(logger *zap.Logger) mux.MiddlewareFunc {
 	return mux.MiddlewareFunc(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			
+
 			// Create a custom ResponseWriter to capture status code
 			ww := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-			
+
 			// Call the next handler
 			next.ServeHTTP(ww, r)
-			
+
 			// Log the request
 			logger.Info("HTTP request",
 				zap.String("method", r.Method),
@@ -138,7 +138,7 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().UTC(),
 		"service":   "aster-api",
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)

@@ -33,7 +33,7 @@ func NewJobHandler(jobStore *store.JobStore, logger *zap.Logger) *JobHandler {
 // CreateJob handles POST /api/v1/jobs
 func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	var job types.Job
-	
+
 	// Parse JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
 		h.writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
@@ -83,7 +83,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.logger.Info("Job created", 
+	h.logger.Info("Job created",
 		zap.String("job_id", job.ID.String()),
 		zap.String("job_name", job.Name))
 
@@ -256,7 +256,7 @@ func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
 func (h *JobHandler) writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		h.logger.Error("Failed to encode JSON response", zap.Error(err))
 	}
@@ -266,12 +266,12 @@ func (h *JobHandler) writeJSON(w http.ResponseWriter, status int, data any) {
 func (h *JobHandler) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	errorResponse := map[string]interface{}{
 		"error":   true,
 		"message": message,
 		"status":  status,
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResponse)
 }

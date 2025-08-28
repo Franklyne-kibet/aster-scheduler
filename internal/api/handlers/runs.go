@@ -14,18 +14,17 @@ import (
 
 // RunHandler handles run-related HTTP requests
 type RunHandler struct {
-	runStore	*store.RunStore
-	logger 		*zap.Logger
+	runStore *store.RunStore
+	logger   *zap.Logger
 }
 
 // NewRunHandler creates a new run handler
 func NewRunHandler(runStore *store.RunStore, logger *zap.Logger) *RunHandler {
 	return &RunHandler{
 		runStore: runStore,
-		logger: 	logger,
+		logger:   logger,
 	}
 }
-
 
 // GetRun handles GET /api/v1/runs/{id}
 func (h *RunHandler) GetRun(w http.ResponseWriter, r *http.Request) {
@@ -103,12 +102,12 @@ func (h *RunHandler) writeJSON(w http.ResponseWriter, status int, data interface
 func (h *RunHandler) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	
+
 	errorResponse := map[string]interface{}{
 		"error":   true,
 		"message": message,
 		"status":  status,
 	}
-	
+
 	json.NewEncoder(w).Encode(errorResponse)
 }
