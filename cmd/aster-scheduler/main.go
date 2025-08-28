@@ -43,11 +43,12 @@ func main() {
 	}
 	defer database.Close()
 
-	// Create job store
+	// Create stores
 	jobStore := store.NewJobStore(database.Pool())
+	runStore := store.NewRunStore(database.Pool())
 
 	// Create scheduler
-	sched := scheduler.NewScheduler(jobStore, logger)
+	sched := scheduler.NewScheduler(jobStore, runStore, logger)
 
 	// Start scheduler in goroutine
 	ctx, cancel = context.WithCancel(context.Background())

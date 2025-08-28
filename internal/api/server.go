@@ -133,7 +133,7 @@ func (rw *responseWriter) WriteHeader(code int) {
 
 // healthHandler provides a simple health check endpoint
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]interface{}{
+	response := map[string]any{
 		"status":    "healthy",
 		"timestamp": time.Now().UTC(),
 		"service":   "aster-api",

@@ -13,6 +13,7 @@ import (
 // Scheduler is responsible for finding due jobs and scheduling them for execution
 type Scheduler struct {
 	jobStore		*store.JobStore
+	runStore		*store.RunStore
 	cronParser	*CronParser
 	logger			*zap.Logger
 
@@ -21,9 +22,10 @@ type Scheduler struct {
 }
 
 // NewScheduler created a new scheduler instance
-func NewScheduler(jobStore *store.JobStore, logger *zap.Logger) *Scheduler {
+func NewScheduler(jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Scheduler {
 	return &Scheduler{
 		jobStore: 			jobStore,
+		runStore: 			runStore,
 		cronParser: 		NewCronParser(),
 		logger: 				logger,
 		checkInterval: 	30 * time.Second, // Check every 30 seconds by default
@@ -98,19 +100,22 @@ func (s *Scheduler) checkAndScheduleDueJobs(ctx context.Context) error {
 // scheduleJob creates a run for a job and calculates the next run time
 func (s *Scheduler) scheduleJob(ctx context.Context, job *types.Job, scheduledAt time.Time) error {
 	// Create a new run for this job
-	// run := &types.Run{
-	// 	JobID:       job.ID,
-	// 	Status:      types.RunStatusScheduled,
-	// 	AttemptNum:  1, // This is the first attempt
-	// 	ScheduledAt: scheduledAt,
-	// }
+	run := &types.Run{
+		JobID:       job.ID,
+		Status:      types.RunStatusScheduled,
+		AttemptNum:  1, // This is the first attempt
+		ScheduledAt: scheduledAt,
+	}
 
 	// Create the run in the database
-	// TODO: Implement Runstore, we'll need it
-	// Log what we would do
-	s.logger.Info("Would create run for job",
+	if err := s.runStore.CreateRun(ctx, run); err != nil {
+		return fmt.Errorf("failed to create run for job %s: %w", job.Name, err)
+	}
+
+	s.logger.Info("Created run for job",
 		zap.String("job_id", job.ID.String()),
 		zap.String("job_name", job.Name),
+		zap.String("run_id", run.ID.String()),
 		zap.Time("scheduled_at", scheduledAt))
 
 	// Calculate next run time

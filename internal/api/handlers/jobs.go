@@ -253,7 +253,7 @@ func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
 // Helper methods
 
 // writeJSON writes a JSON response
-func (h *JobHandler) writeJSON(w http.ResponseWriter, status int, data interface{}) {
+func (h *JobHandler) writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	
