@@ -14,7 +14,7 @@ import (
 )
 
 // JobStore handles all job-related database operations
-type JobStore struct { 
+type JobStore struct {
 	pool *pgxpool.Pool
 }
 
@@ -86,8 +86,8 @@ func (s *JobStore) GetJob(ctx context.Context, id uuid.UUID) (*types.Job, error)
 		&job.Description,
 		&job.CronExpr,
 		&job.Command,
-		&argsJSON,    // Scan JSON as bytes
-		&envJSON,    // Scan JSON as bytes
+		&argsJSON, // Scan JSON as bytes
+		&envJSON,  // Scan JSON as bytes
 		&job.Status,
 		&job.MaxRetries,
 		&job.Timeout,
@@ -135,7 +135,7 @@ func (s *JobStore) ListJobs(ctx context.Context, limit, offset int) ([]*types.Jo
 	var jobs []*types.Job
 
 	// Iterate through all rows
-	for rows.Next(){
+	for rows.Next() {
 		var job types.Job
 		var argsJSON, envJSON []byte
 
@@ -191,7 +191,7 @@ func (s *JobStore) UpdateJob(ctx context.Context, job *types.Job) error {
 		return fmt.Errorf("failed to marshal env: %w", err)
 	}
 
-		query := `
+	query := `
 		UPDATE jobs 
 		SET name = $2, description = $3, cron_expr = $4, command = $5,
 		args = $6, env = $7, status = $8, max_retries = $9, 
@@ -264,7 +264,7 @@ func (s *JobStore) GetActiveJobsDue(ctx context.Context, before time.Time) ([]*t
 
 		err := rows.Scan(
 			&job.ID,
-			&job.Name, 
+			&job.Name,
 			&job.Description,
 			&job.CronExpr,
 			&job.Command,

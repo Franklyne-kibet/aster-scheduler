@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/db"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/types"
+	"github.com/google/uuid"
 )
 
 // setupTestDB creates a test database connection
@@ -17,7 +17,7 @@ func setupTestDB(t *testing.T) *JobStore {
 	// Connect to test database
 	databaseURL := "postgres://postgres:password@localhost:5432/aster?sslmode=disable"
 
-	ctx,  cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	database, err := db.NewConnection(ctx, databaseURL)
@@ -27,11 +27,11 @@ func setupTestDB(t *testing.T) *JobStore {
 	}
 
 	// Clean up any existing test data
-		_, err = database.Pool().Exec(ctx, "DELETE FROM jobs WHERE name LIKE 'test_%'")
+	_, err = database.Pool().Exec(ctx, "DELETE FROM jobs WHERE name LIKE 'test_%'")
 	if err != nil {
 		t.Fatalf("Failed to clean up test data: %v", err)
 	}
-	
+
 	return NewJobStore(database.Pool())
 }
 
@@ -69,7 +69,7 @@ func TestJobStore_CreateJob(t *testing.T) {
 		t.Fatalf("Expected no error getting job, got: %v", err)
 	}
 
-		// Check that values match
+	// Check that values match
 	if retrieved.Name != job.Name {
 		t.Errorf("Expected name %s, got %s", job.Name, retrieved.Name)
 	}
@@ -131,7 +131,7 @@ func TestJobStore_ListJobs(t *testing.T) {
 			Status:   types.JobStatusActive,
 		},
 		{
-			ID:       uuid.New(), 
+			ID:       uuid.New(),
 			Name:     "test_job_2",
 			CronExpr: "0 1 * * *",
 			Command:  "echo",
