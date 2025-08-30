@@ -1,8 +1,12 @@
-.PHONY: build test run-demo setup-db migrate clean dev full-demo format check-format vet tidy test-coverage quality pre-commit
+.PHONY: build test run-demo setup-db migrate clean dev full-demo format check-format vet tidy test-coverage quality pre-commit run-api run-scheduler run-worker
 
 # Load environment variables from .env
 include .env
 export $(shell sed 's/=.*//' .env)
+
+# Docker Compose settings
+COMPOSE_FILE=deployments/docker-compose.yml
+DB_SERVICE=postgres
 
 # Build all binaries
 build:
@@ -12,11 +16,11 @@ build:
 
 # Database setup
 setup-db:
-	docker-compose up -d postgres
+	docker compose -f $(COMPOSE_FILE) up -d $(DB_SERVICE)
 	@echo "Waiting for PostgreSQL to be ready..."
 	@sleep 5
 
-# Run migrations
+# Run migrations 
 migrate: setup-db
 	@echo "Creating tables..."
 	PGPASSWORD=$(POSTGRES_PASSWORD) psql -h $(POSTGRES_HOST) -p $(POSTGRES_PORT) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f internal/db/migrations/001_jobs_table.sql
@@ -31,7 +35,7 @@ test: migrate
 	go test -v ./internal/executor
 	go test -v ./internal/worker
 
-# Run the simple demo from earlier steps
+# Run the simple demo
 run-demo: migrate build
 	go run ./cmd/demo
 
@@ -56,10 +60,9 @@ dev: format migrate test build run-demo
 # Clean up everything
 clean:
 	rm -rf bin/
-	docker-compose down -v
+	docker compose -f $(COMPOSE_FILE) down -v
 
 # Code Formatting (Go Standards)
-# Format Go code using standard Go tools
 format:
 	@echo "Formatting Go code..."
 	@go fmt ./...
