@@ -8,9 +8,6 @@ import (
 
 func TestNewConnection(t *testing.T) {
 	// Skip this test if we don't have a database running
-	// You can run: docker-compose up -d postgres
-	// Then: DATABASE_URL=postgres://postgres:password@localhost:5432/aster?sslmode=disable go test ./internal/db
-
 	databaseURL := "postgres://postgres:password@localhost:5432/aster?sslmode=disable"
 
 	// Create context with timeout
