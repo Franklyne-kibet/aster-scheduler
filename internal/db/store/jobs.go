@@ -104,11 +104,11 @@ func (s *JobStore) GetJob(ctx context.Context, id uuid.UUID) (*types.Job, error)
 	}
 
 	// Convert JSON back to Go types
-	if err := json.Unmarshal((argsJSON), &job.Args); err != nil {
+	if err := json.Unmarshal(argsJSON, &job.Args); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal args: %w", err)
 	}
 
-	if err := json.Unmarshal((envJSON), &job.Env); err != nil {
+	if err := json.Unmarshal(envJSON, &job.Env); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal env: %w", err)
 	}
 
@@ -243,7 +243,7 @@ func (s *JobStore) DeleteJob(ctx context.Context, id uuid.UUID) error {
 func (s *JobStore) GetActiveJobsDue(ctx context.Context, before time.Time) ([]*types.Job, error) {
 	query := `
 		SELECT id, name, description, cron_expr, command, args, env,
-		  	status, max_retries, timeout, created_at, updated_at, next_run_at
+		  status, max_retries, timeout, created_at, updated_at, next_run_at
 		FROM jobs
 		WHERE status = $1 
 		  AND (next_run_at IS NULL OR next_run_at <= $2)

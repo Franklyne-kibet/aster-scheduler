@@ -89,27 +89,27 @@ func (s *RunStore) GetRun(ctx context.Context, id uuid.UUID) (*types.Run, error)
 // ListRuns returns runs, optionally filtered by job ID
 func (s *RunStore) ListRuns(ctx context.Context, jobID *uuid.UUID, limit, offset int) ([]*types.Run, error) {
 	var query string
-	var args []interface{}
+	var args []any
 
 	if jobID != nil {
 		query = `
 			SELECT id, job_id, status, attempt_num, scheduled_at, started_at,
-			    finished_at, output, error_msg, created_at, updated_at
+			  finished_at, output, error_msg, created_at, updated_at
 			FROM runs
 			WHERE job_id = $1
 			ORDER BY created_at DESC
 			LIMIT $2 OFFSET $3
 		`
-		args = []interface{}{*jobID, limit, offset}
+		args = []any{*jobID, limit, offset}
 	} else {
 		query = `
 			SELECT id, job_id, status, attempt_num, scheduled_at, started_at,
-			    finished_at, output, error_msg, created_at, updated_at
+			  finished_at, output, error_msg, created_at, updated_at
 			FROM runs
 			ORDER BY created_at DESC
 			LIMIT $1 OFFSET $2
 		`
-		args = []interface{}{limit, offset}
+		args = []any{limit, offset}
 	}
 
 	rows, err := s.pool.Query(ctx, query, args...)
@@ -214,7 +214,7 @@ func (s *RunStore) MarkRunFinished(ctx context.Context, runID uuid.UUID, status 
 func (s *RunStore) GetRunsByStatus(ctx context.Context, status types.RunStatus, limit int) ([]*types.Run, error) {
 	query := `
 		SELECT id, job_id, status, attempt_num, scheduled_at, started_at,
-		    finished_at, output, error_msg, created_at, updated_at
+		  finished_at, output, error_msg, created_at, updated_at
 		FROM runs
 		WHERE status = $1
 		ORDER BY scheduled_at ASC
