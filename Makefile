@@ -20,7 +20,7 @@ setup-db:
 	@echo "Waiting for PostgreSQL to be ready..."
 	@sleep 5
 
-# Run migrations 
+# Run migrations
 migrate: setup-db
 	@echo "Creating tables..."
 	PGPASSWORD=$(POSTGRES_PASSWORD) psql -h $(POSTGRES_HOST) -p $(POSTGRES_PORT) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f internal/db/migrations/001_jobs_table.sql
