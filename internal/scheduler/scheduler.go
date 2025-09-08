@@ -21,7 +21,7 @@ type Scheduler struct {
 	checkInterval time.Duration
 }
 
-// NewScheduler created a new scheduler instance
+// NewScheduler creates a new scheduler instance
 func NewScheduler(jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Scheduler {
 	return &Scheduler{
 		jobStore:      jobStore,

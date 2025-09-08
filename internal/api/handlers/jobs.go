@@ -3,12 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
-	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 
+	"github.com/Franklyne-kibet/aster-scheduler/internal/common"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/db/store"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/scheduler"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/types"
@@ -36,29 +35,25 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 
 	// Parse JSON request body
 	if err := json.NewDecoder(r.Body).Decode(&job); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
+		common.WriteValidationError(w, "Invalid JSON: "+err.Error(), h.logger)
 		return
 	}
 
 	// Validate required fields
-	if job.Name == "" {
-		h.writeError(w, http.StatusBadRequest, "Job name is required")
-		return
+	requiredFields := map[string]string{
+		"name":      job.Name,
+		"cron_expr": job.CronExpr,
+		"command":   job.Command,
 	}
-
-	if job.CronExpr == "" {
-		h.writeError(w, http.StatusBadRequest, "Cron expression is required")
-		return
-	}
-
-	if job.Command == "" {
-		h.writeError(w, http.StatusBadRequest, "Command is required")
+	
+	if err := common.ValidateRequiredFields(requiredFields); err != nil {
+		common.WriteValidationError(w, err.Error(), h.logger)
 		return
 	}
 
 	// Validate cron expression
 	if err := h.cronParser.Validate(job.CronExpr); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid cron expression: "+err.Error())
+		common.WriteValidationError(w, "Invalid cron expression: "+err.Error(), h.logger)
 		return
 	}
 
@@ -79,7 +74,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	// Create job in database
 	if err := h.jobStore.CreateJob(r.Context(), &job); err != nil {
 		h.logger.Error("Failed to create job", zap.Error(err))
-		h.writeError(w, http.StatusInternalServerError, "Failed to create job")
+		common.WriteInternalError(w, h.logger)
 		return
 	}
 
@@ -88,7 +83,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		zap.String("job_name", job.Name))
 
 	// Return created job
-	h.writeJSON(w, http.StatusCreated, job)
+	common.WriteJSON(w, http.StatusCreated, job, h.logger)
 }
 
 // GetJob handles GET /api/v1/jobs/{id}
@@ -97,9 +92,9 @@ func (h *JobHandler) GetJob(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
-	id, err := uuid.Parse(idStr)
+	id, err := common.ParseUUID(idStr)
 	if err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid job ID format")
+		common.WriteValidationError(w, "Invalid job ID format", h.logger)
 		return
 	}
 
@@ -107,15 +102,15 @@ func (h *JobHandler) GetJob(w http.ResponseWriter, r *http.Request) {
 	job, err := h.jobStore.GetJob(r.Context(), id)
 	if err != nil {
 		if err.Error() == "job not found" {
-			h.writeError(w, http.StatusNotFound, "Job not found")
+			common.WriteNotFoundError(w, "Job", h.logger)
 		} else {
 			h.logger.Error("Failed to get job", zap.Error(err))
-			h.writeError(w, http.StatusInternalServerError, "Failed to get job")
+			common.WriteInternalError(w, h.logger)
 		}
 		return
 	}
 
-	h.writeJSON(w, http.StatusOK, job)
+	common.WriteJSON(w, http.StatusOK, job, h.logger)
 }
 
 // ListJobs handles GET /api/v1/jobs
@@ -124,30 +119,19 @@ func (h *JobHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
 
-	limit := 50 // default
-	if limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 {
-			limit = parsedLimit
-		}
-	}
-
-	offset := 0 // default
-	if offsetStr != "" {
-		if parsedOffset, err := strconv.Atoi(offsetStr); err == nil && parsedOffset >= 0 {
-			offset = parsedOffset
-		}
-	}
+	limit := common.ParsePositiveIntWithDefault(limitStr, 50)
+	offset := common.ParseIntWithDefault(offsetStr, 0)
 
 	// Get jobs from database
 	jobs, err := h.jobStore.ListJobs(r.Context(), limit, offset)
 	if err != nil {
 		h.logger.Error("Failed to list jobs", zap.Error(err))
-		h.writeError(w, http.StatusInternalServerError, "Failed to list jobs")
+		common.WriteInternalError(w, h.logger)
 		return
 	}
 
 	// Return jobs as JSON array
-	h.writeJSON(w, http.StatusOK, jobs)
+	common.WriteJSON(w, http.StatusOK, jobs, h.logger)
 }
 
 // UpdateJob handles PUT /api/v1/jobs/{id}
@@ -156,9 +140,9 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
-	id, err := uuid.Parse(idStr)
+	id, err := common.ParseUUID(idStr)
 	if err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid job ID format")
+		common.WriteValidationError(w, "Invalid job ID format", h.logger)
 		return
 	}
 
@@ -166,10 +150,10 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 	existingJob, err := h.jobStore.GetJob(r.Context(), id)
 	if err != nil {
 		if err.Error() == "job not found" {
-			h.writeError(w, http.StatusNotFound, "Job not found")
+			common.WriteNotFoundError(w, "Job", h.logger)
 		} else {
 			h.logger.Error("Failed to get job for update", zap.Error(err))
-			h.writeError(w, http.StatusInternalServerError, "Failed to get job")
+			common.WriteInternalError(w, h.logger)
 		}
 		return
 	}
@@ -177,7 +161,7 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 	// Parse updated job data
 	var updatedJob types.Job
 	if err := json.NewDecoder(r.Body).Decode(&updatedJob); err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid JSON: "+err.Error())
+		common.WriteValidationError(w, "Invalid JSON: "+err.Error(), h.logger)
 		return
 	}
 
@@ -188,7 +172,7 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 	// Validate cron expression if it was changed
 	if updatedJob.CronExpr != "" && updatedJob.CronExpr != existingJob.CronExpr {
 		if err := h.cronParser.Validate(updatedJob.CronExpr); err != nil {
-			h.writeError(w, http.StatusBadRequest, "Invalid cron expression: "+err.Error())
+			common.WriteValidationError(w, "Invalid cron expression: "+err.Error(), h.logger)
 			return
 		}
 	}
@@ -210,7 +194,7 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 	// Update job in database
 	if err := h.jobStore.UpdateJob(r.Context(), &updatedJob); err != nil {
 		h.logger.Error("Failed to update job", zap.Error(err))
-		h.writeError(w, http.StatusInternalServerError, "Failed to update job")
+		common.WriteInternalError(w, h.logger)
 		return
 	}
 
@@ -218,7 +202,7 @@ func (h *JobHandler) UpdateJob(w http.ResponseWriter, r *http.Request) {
 		zap.String("job_id", updatedJob.ID.String()),
 		zap.String("job_name", updatedJob.Name))
 
-	h.writeJSON(w, http.StatusOK, updatedJob)
+	common.WriteJSON(w, http.StatusOK, updatedJob, h.logger)
 }
 
 // DeleteJob handles DELETE /api/v1/jobs/{id}
@@ -227,19 +211,19 @@ func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	idStr := vars["id"]
 
-	id, err := uuid.Parse(idStr)
+	id, err := common.ParseUUID(idStr)
 	if err != nil {
-		h.writeError(w, http.StatusBadRequest, "Invalid job ID format")
+		common.WriteValidationError(w, "Invalid job ID format", h.logger)
 		return
 	}
 
 	// Delete job from database
 	if err := h.jobStore.DeleteJob(r.Context(), id); err != nil {
 		if err.Error() == "job not found" {
-			h.writeError(w, http.StatusNotFound, "Job not found")
+			common.WriteNotFoundError(w, "Job", h.logger)
 		} else {
 			h.logger.Error("Failed to delete job", zap.Error(err))
-			h.writeError(w, http.StatusInternalServerError, "Failed to delete job")
+			common.WriteInternalError(w, h.logger)
 		}
 		return
 	}
@@ -247,31 +231,5 @@ func (h *JobHandler) DeleteJob(w http.ResponseWriter, r *http.Request) {
 	h.logger.Info("Job deleted", zap.String("job_id", id.String()))
 
 	// Return 204 No Content
-	w.WriteHeader(http.StatusNoContent)
-}
-
-// Helper methods
-
-// writeJSON writes a JSON response
-func (h *JobHandler) writeJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		h.logger.Error("Failed to encode JSON response", zap.Error(err))
-	}
-}
-
-// writeError writes a JSON error response
-func (h *JobHandler) writeError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-
-	errorResponse := map[string]interface{}{
-		"error":   true,
-		"message": message,
-		"status":  status,
-	}
-
-	json.NewEncoder(w).Encode(errorResponse)
+	common.WriteNoContent(w)
 }
