@@ -45,7 +45,7 @@ func (h *JobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		"cron_expr": job.CronExpr,
 		"command":   job.Command,
 	}
-	
+
 	if err := common.ValidateRequiredFields(requiredFields); err != nil {
 		common.WriteValidationError(w, err.Error(), h.logger)
 		return

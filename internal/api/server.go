@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -14,6 +16,26 @@ import (
 	"github.com/Franklyne-kibet/aster-scheduler/internal/db/store"
 )
 
+// Config holds server configuration
+type Config struct {
+	Port           int
+	ReadTimeout    time.Duration
+	WriteTimeout   time.Duration
+	IdleTimeout    time.Duration
+	AllowedOrigins []string
+}
+
+// DefaultConfig returns sensible defaults
+func DefaultConfig() *Config {
+	return &Config{
+		Port:           8080,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		AllowedOrigins: []string{"http://localhost:3000"}, // Default for development
+	}
+}
+
 // Server represents the HTTP API server
 type Server struct {
 	httpServer *http.Server
@@ -21,7 +43,7 @@ type Server struct {
 }
 
 // NewServer creates a new API server
-func NewServer(port int, jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Server {
+func NewServer(config *Config, jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Server {
 	// Create handlers
 	jobHandler := handlers.NewJobHandler(jobStore, logger)
 	runHandler := handlers.NewRunHandler(runStore, logger)
@@ -29,9 +51,10 @@ func NewServer(port int, jobStore *store.JobStore, runStore *store.RunStore, log
 	// Create router
 	router := mux.NewRouter()
 
-	// Add middleware
+	// Add middleware in order
+	router.Use(panicRecoveryMiddleware(logger))
 	router.Use(loggingMiddleware(logger))
-	router.Use(corsMiddleware)
+	router.Use(corsMiddleware(config.AllowedOrigins))
 
 	// API routes
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
@@ -52,11 +75,11 @@ func NewServer(port int, jobStore *store.JobStore, runStore *store.RunStore, log
 
 	// Create HTTP server
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", port),
+		Addr:         fmt.Sprintf(":%d", config.Port),
 		Handler:      router,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  60 * time.Second,
+		ReadTimeout:  config.ReadTimeout,
+		WriteTimeout: config.WriteTimeout,
+		IdleTimeout:  config.IdleTimeout,
 	}
 
 	return &Server{
@@ -79,9 +102,32 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 // Middleware
 
+// panicRecoveryMiddleware recovers from panics and returns 500
+func panicRecoveryMiddleware(logger *zap.Logger) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer func() {
+				if err := recover(); err != nil {
+					logger.Error("Panic recovered",
+						zap.Any("error", err),
+						zap.String("path", r.URL.Path),
+						zap.String("method", r.Method))
+
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusInternalServerError)
+					json.NewEncoder(w).Encode(map[string]string{
+						"error": "Internal server error",
+					})
+				}
+			}()
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // loggingMiddleware logs HTTP requests
 func loggingMiddleware(logger *zap.Logger) mux.MiddlewareFunc {
-	return mux.MiddlewareFunc(func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
 
@@ -99,25 +145,60 @@ func loggingMiddleware(logger *zap.Logger) mux.MiddlewareFunc {
 				zap.Int("status", ww.statusCode),
 				zap.Duration("duration", time.Since(start)),
 				zap.String("user_agent", r.UserAgent()),
-				zap.String("remote_addr", r.RemoteAddr))
+				zap.String("remote_addr", getClientIP(r)))
 		})
-	})
+	}
 }
 
-// corsMiddleware adds CORS headers for web browsers
-func corsMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+// corsMiddleware adds CORS headers with configurable origins
+func corsMiddleware(allowedOrigins []string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			origin := r.Header.Get("Origin")
 
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
+			// Check if origin is allowed
+			if isOriginAllowed(origin, allowedOrigins) {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+			}
 
-		next.ServeHTTP(w, r)
-	})
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+			// Handle preflight
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+// Helper functions
+
+// isOriginAllowed checks if origin is in allowed list
+func isOriginAllowed(origin string, allowedOrigins []string) bool {
+	return slices.Contains(allowedOrigins, origin)
+}
+
+// getClientIP extracts client IP, handling proxies
+func getClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff != "" {
+		// Take first IP in case of multiple
+		return strings.Split(xff, ",")[0]
+	}
+
+	// Check X-Real-IP header
+	xri := r.Header.Get("X-Real-IP")
+	if xri != "" {
+		return xri
+	}
+
+	// Fall back to RemoteAddr
+	return r.RemoteAddr
 }
 
 // responseWriter wraps http.ResponseWriter to capture status code

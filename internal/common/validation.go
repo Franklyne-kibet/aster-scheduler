@@ -16,11 +16,11 @@ func ParseIntWithDefault(str string, defaultValue int) int {
 	if str == "" {
 		return defaultValue
 	}
-	
+
 	if parsed, err := strconv.Atoi(str); err == nil && parsed >= 0 {
 		return parsed
 	}
-	
+
 	return defaultValue
 }
 
@@ -29,11 +29,11 @@ func ParsePositiveIntWithDefault(str string, defaultValue int) int {
 	if str == "" {
 		return defaultValue
 	}
-	
+
 	if parsed, err := strconv.Atoi(str); err == nil && parsed > 0 {
 		return parsed
 	}
-	
+
 	return defaultValue
 }
 
