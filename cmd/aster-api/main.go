@@ -47,8 +47,17 @@ func main() {
 	jobStore := store.NewJobStore(database.Pool())
 	runStore := store.NewRunStore(database.Pool())
 
+	// Create server config
+	serverConfig := &api.Config{
+		Port:           cfg.APIPort,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		AllowedOrigins: []string{"http://localhost:3000"},
+	}
+
 	// Create and start API server
-	server := api.NewServer(cfg.APIPort, jobStore, runStore, logger)
+	server := api.NewServer(serverConfig, jobStore, runStore, logger)
 
 	// Start server in goroutine
 	go func() {
