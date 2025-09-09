@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -47,21 +48,12 @@ func main() {
 	jobStore := store.NewJobStore(database.Pool())
 	runStore := store.NewRunStore(database.Pool())
 
-	// Create server config
-	serverConfig := &api.Config{
-		Port:           cfg.APIPort,
-		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
-		IdleTimeout:    60 * time.Second,
-		AllowedOrigins: []string{"http://localhost:3000"},
-	}
-
 	// Create and start API server
-	server := api.NewServer(serverConfig, jobStore, runStore, logger)
+	server := api.NewServer(cfg, jobStore, runStore, logger)
 
 	// Start server in goroutine
 	go func() {
-		if err := server.Start(); err != nil {
+		if err := server.Start(); err != nil && err != http.ErrServerClosed {
 			logger.Fatal("Server failed to start", zap.Error(err))
 		}
 	}()
