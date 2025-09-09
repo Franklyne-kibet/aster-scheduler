@@ -25,6 +25,6 @@ WORKDIR /app
 # Copy all built binaries from builder
 COPY --from=builder /bin/aster-* /bin/
 
-# Default entrypoint (each service overrides with `command:` in compose)
+# Entrypoint
 ENTRYPOINT ["/bin/sh", "-c"]
 CMD ["echo 'Please specify a service binary to run (aster-api, aster-scheduler, aster-worker)'"]
