@@ -13,28 +13,9 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Franklyne-kibet/aster-scheduler/internal/api/handlers"
+	"github.com/Franklyne-kibet/aster-scheduler/internal/config"
 	"github.com/Franklyne-kibet/aster-scheduler/internal/db/store"
 )
-
-// Config holds server configuration
-type Config struct {
-	Port           int
-	ReadTimeout    time.Duration
-	WriteTimeout   time.Duration
-	IdleTimeout    time.Duration
-	AllowedOrigins []string
-}
-
-// DefaultConfig returns sensible defaults
-func DefaultConfig() *Config {
-	return &Config{
-		Port:           8080,
-		ReadTimeout:    15 * time.Second,
-		WriteTimeout:   15 * time.Second,
-		IdleTimeout:    60 * time.Second,
-		AllowedOrigins: []string{"http://localhost:3000"}, // Default for development
-	}
-}
 
 // Server represents the HTTP API server
 type Server struct {
@@ -43,7 +24,7 @@ type Server struct {
 }
 
 // NewServer creates a new API server
-func NewServer(config *Config, jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Server {
+func NewServer(cfg *config.Config, jobStore *store.JobStore, runStore *store.RunStore, logger *zap.Logger) *Server {
 	// Create handlers
 	jobHandler := handlers.NewJobHandler(jobStore, logger)
 	runHandler := handlers.NewRunHandler(runStore, logger)
@@ -54,7 +35,7 @@ func NewServer(config *Config, jobStore *store.JobStore, runStore *store.RunStor
 	// Add middleware in order
 	router.Use(panicRecoveryMiddleware(logger))
 	router.Use(loggingMiddleware(logger))
-	router.Use(corsMiddleware(config.AllowedOrigins))
+	router.Use(corsMiddleware(cfg.AllowedOrigins))
 
 	// API routes
 	apiRouter := router.PathPrefix("/api/v1").Subrouter()
@@ -75,11 +56,11 @@ func NewServer(config *Config, jobStore *store.JobStore, runStore *store.RunStor
 
 	// Create HTTP server
 	httpServer := &http.Server{
-		Addr:         fmt.Sprintf(":%d", config.Port),
+		Addr:         fmt.Sprintf(":%d", cfg.APIPort),
 		Handler:      router,
-		ReadTimeout:  config.ReadTimeout,
-		WriteTimeout: config.WriteTimeout,
-		IdleTimeout:  config.IdleTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		IdleTimeout:  cfg.IdleTimeout,
 	}
 
 	return &Server{
