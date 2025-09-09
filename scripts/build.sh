@@ -4,7 +4,7 @@
 set -e
 
 # Docker Compose settings
-COMPOSE_FILE="deployments/docker-compose.yml"
+COMPOSE_FILE="docker-compose.yml"
 DB_SERVICE="postgres"
 
 # Load environment variables
@@ -15,40 +15,13 @@ fi
 echo "Aster Scheduler"
 echo "======================="
 
-# Start PostgreSQL
-echo "Starting PostgreSQL..."
-docker compose -f "$COMPOSE_FILE" up -d "$DB_SERVICE"
-sleep 5
-
-# Run migrations
-echo "🗃️  Running database migrations..."
-PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f internal/db/migrations/001_jobs_table.sql
-PGPASSWORD=$POSTGRES_PASSWORD psql -h localhost -U $POSTGRES_USER -d $POSTGRES_DB -f internal/db/migrations/002_runs_table.sql
-
-# Build binaries
-echo "Building applications..."
-go build -o bin/aster-api ./cmd/aster-api
-go build -o bin/aster-scheduler ./cmd/aster-scheduler
-go build -o bin/aster-worker ./cmd/aster-worker
-
-# Start scheduler in background
-echo "Starting scheduler..."
-./bin/aster-scheduler &
-SCHEDULER_PID=$!
-
-# Start worker in background
-echo "Starting worker..."
-./bin/aster-worker &
-WORKER_PID=$!
-
-# Start API server in background
-echo "Starting API server..."
-./bin/aster-api &
-API_PID=$!
+# Start all services with Docker Compose
+echo "Starting all services with Docker Compose..."
+docker compose -f "$COMPOSE_FILE" up -d
 
 # Wait for services to start
 echo "Waiting for services to start..."
-sleep 3
+sleep 10
 
 # Test API endpoints
 echo ""
@@ -56,7 +29,7 @@ echo "Testing API endpoints..."
 
 # Create a job
 echo "Creating a job..."
-curl -X POST http://localhost:8080/api/v1/jobs \
+curl -X POST http://localhost:8081/api/v1/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "name": "demo_hello_world",
@@ -71,13 +44,13 @@ echo ""
 
 # List jobs
 echo "Listing jobs..."
-curl -s http://localhost:8080/api/v1/jobs | jq .
+curl -s http://localhost:8081/api/v1/jobs | jq .
 
 echo ""
 
 # Create another job that runs every minute
 echo "Creating a frequent job..."
-curl -X POST http://localhost:8080/api/v1/jobs \
+curl -X POST http://localhost:8081/api/v1/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "name": "demo_date",
@@ -93,21 +66,20 @@ sleep 65
 
 # List runs
 echo "Listing runs..."
-curl -s http://localhost:8080/api/v1/runs | jq .
+curl -s http://localhost:8081/api/v1/runs | jq .
 
 echo ""
 echo "✨ Demo complete!"
 echo ""
 echo "Try these commands:"
-echo "  curl http://localhost:8080/health"
-echo "  curl http://localhost:8080/api/v1/jobs"
-echo "  curl http://localhost:8080/api/v1/runs"
+echo "  curl http://localhost:8081/health"
+echo "  curl http://localhost:8081/api/v1/jobs"
+echo "  curl http://localhost:8081/api/v1/runs"
 
 # Cleanup function
 cleanup() {
   echo ""
   echo "Cleaning up..."
-  kill $API_PID $SCHEDULER_PID $WORKER_PID 2>/dev/null || true
   docker compose -f "$COMPOSE_FILE" down
   echo "Cleanup complete"
 }
