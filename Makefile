@@ -5,7 +5,7 @@ include .env
 export $(shell sed 's/=.*//' .env)
 
 # Docker Compose settings
-COMPOSE_FILE=deployments/docker-compose.yml
+COMPOSE_FILE=docker-compose.yml
 DB_SERVICE=postgres
 
 # Build all binaries
@@ -18,13 +18,17 @@ build:
 setup-db:
 	docker compose -f $(COMPOSE_FILE) up -d $(DB_SERVICE)
 	@echo "Waiting for PostgreSQL to be ready..."
-	@sleep 5
+	@until docker compose -f $(COMPOSE_FILE) exec -T $(DB_SERVICE) pg_isready -U $(POSTGRES_USER); do \
+		echo "PostgreSQL is not ready yet..."; \
+		sleep 2; \
+	done
+	@echo "PostgreSQL is ready!"
 
-# Run migrations
+# Run migrations inside the Postgres container
 migrate: setup-db
 	@echo "Creating tables..."
-	PGPASSWORD=$(POSTGRES_PASSWORD) psql -h $(POSTGRES_HOST) -p $(POSTGRES_PORT) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f internal/db/migrations/001_jobs_table.sql
-	PGPASSWORD=$(POSTGRES_PASSWORD) psql -h $(POSTGRES_HOST) -p $(POSTGRES_PORT) -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f internal/db/migrations/002_runs_table.sql
+	docker compose -f $(COMPOSE_FILE) exec -T $(DB_SERVICE) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f /migrations/001_jobs_table.sql
+	docker compose -f $(COMPOSE_FILE) exec -T $(DB_SERVICE) psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f /migrations/002_runs_table.sql
 
 # Run all tests
 test: migrate

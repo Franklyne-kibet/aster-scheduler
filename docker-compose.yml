@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: aster-postgres
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./internal/db/migrations:/migrations
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT:-5432}:${POSTGRES_PORT:-5432}"
+
+  aster-api:
+    build: .
+    container_name: aster-api
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    command: /bin/aster-api
+    ports:
+      - "${API_EXTERNAL_PORT:-8081}:${API_PORT:-8080}"
+
+  aster-scheduler:
+    build: .
+    container_name: aster-scheduler
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    command: /bin/aster-scheduler
+
+  aster-worker:
+    build: .
+    container_name: aster-worker
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+    command: /bin/aster-worker
+
+volumes:
+  pgdata:
