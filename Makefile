@@ -48,7 +48,7 @@ full-demo: migrate build
 	chmod +x scripts/build.sh
 	./scripts/build.sh
 
-# Individual service commands (run in Docker containers)
+# Individual service commands
 run-api: migrate
 	docker compose -f $(COMPOSE_FILE) up -d postgres
 	docker compose -f $(COMPOSE_FILE) up aster-api
@@ -82,7 +82,7 @@ format:
 	fi
 	@echo "Code formatting completed"
 
-# Check if code is properly formatted (for CI)
+# Check if code is properly
 check-format:
 	@echo "Checking code formatting..."
 	@if [ -n "$$(gofmt -l .)" ]; then \
@@ -124,6 +124,6 @@ test-coverage:
 quality: format vet tidy
 	@echo "Code quality check completed"
 
-# Pre-commit hook (run before committing code)
+# Pre-commit hook
 pre-commit: format quality test
 	@echo "Pre-commit checks completed successfully"
