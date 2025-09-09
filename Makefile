@@ -48,15 +48,18 @@ full-demo: migrate build
 	chmod +x scripts/build.sh
 	./scripts/build.sh
 
-# Individual service commands
-run-api: migrate build
-	./bin/aster-api
+# Individual service commands (run in Docker containers)
+run-api: migrate
+	docker compose -f $(COMPOSE_FILE) up -d postgres
+	docker compose -f $(COMPOSE_FILE) up aster-api
 
-run-scheduler: migrate build
-	./bin/aster-scheduler
+run-scheduler: migrate
+	docker compose -f $(COMPOSE_FILE) up -d postgres
+	docker compose -f $(COMPOSE_FILE) up aster-scheduler
 
-run-worker: migrate build
-	./bin/aster-worker
+run-worker: migrate
+	docker compose -f $(COMPOSE_FILE) up -d postgres
+	docker compose -f $(COMPOSE_FILE) up aster-worker
 
 # Development workflow with formatting
 dev: format migrate test build run-demo
