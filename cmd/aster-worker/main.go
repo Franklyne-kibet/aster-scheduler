@@ -58,23 +58,35 @@ func main() {
 	// Create worker
 	w := worker.NewWorker(workerID, jobStore, runStore, exec, logger)
 
+	// Channel to capture worker errors
+	workerErrCh := make(chan error, 1)
+
 	// Start worker in goroutine
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
 		if err := w.Run(ctx); err != nil {
-			logger.Error("Worker error", zap.Error(err))
+			workerErrCh <- err
 		}
 	}()
 
 	// Wait for interrupt signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
-	logger.Info("Worker is shutting down...")
-	cancel() // Cancel context to stop worker
+	select {
+	case sig := <- quit:
+		logger.Info("Worker shutting down...", zap.String("signal", sig.String()))
+	case err := <- workerErrCh:
+		logger.Fatal("Worker failed", zap.Error(err))
+	}
+
+	// Cancel worker context for graceful shutdown
+	cancel()
+
+	// Give worker some time to cleanup
+	time.Sleep(2 * time.Second)
 
 	logger.Info("Worker exited")
 }

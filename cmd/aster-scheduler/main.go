@@ -50,23 +50,35 @@ func main() {
 	// Create scheduler
 	sched := scheduler.NewScheduler(jobStore, runStore, logger)
 
+	// Channel to capture scheduler errors
+	schedErrCh := make(chan error, 1)
+
 	// Start scheduler in goroutine
 	ctx, cancel = context.WithCancel(context.Background())
 	defer cancel()
 
 	go func() {
 		if err := sched.Run(ctx); err != nil {
-			logger.Error("Scheduler error", zap.Error(err))
+			schedErrCh <- err
 		}
 	}()
 
-	// Wait for interrupt signal
+	// Wait for interrupt signal or scheduler error
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
-	logger.Info("Scheduler is shutting down...")
-	cancel() // Cancel context to stop scheduler
+	select {
+	case sig := <-quit:
+		logger.Info("Scheduler shutting down...", zap.String("signal", sig.String()))
+	case err := <-schedErrCh:
+		logger.Fatal("Scheduler failed", zap.Error(err))
+	}
+
+	// Cancel scheduler context for graceful shutdown
+	cancel()
+
+	// Give scheduler some time to cleanup
+	time.Sleep(2 * time.Second)
 
 	logger.Info("Scheduler exited")
 }
