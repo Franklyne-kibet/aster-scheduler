@@ -1,0 +1,495 @@
+openapi: 3.1.0
+info:
+  title: Aster Scheduler API
+  description: A distributed job scheduler with cron-based scheduling and horizontal scaling
+  version: 1.0.0
+  contact:
+    name: Aster Scheduler
+    url: https://github.com/Franklyne-kibet/aster-scheduler
+  license:
+    name: Apache 2.0
+    url: https://opensource.org/licenses/Apache-2.0
+
+servers:
+  - url: http://localhost:8081
+    description: Development server (Docker)
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API server is healthy
+      operationId: getHealth
+      tags:
+        - System
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  timestamp:
+                    type: string
+                    format: date-time
+                    example: "2024-01-01T00:00:00Z"
+
+  /api/v1/jobs:
+    get:
+      summary: List jobs
+      description: Get a list of jobs with optional filtering
+      operationId: listJobs
+      tags:
+        - Jobs
+      parameters:
+        - name: status
+          in: query
+          description: Filter by job status
+          schema:
+            type: string
+            enum: [active, inactive, archived]
+        - name: limit
+          in: query
+          description: Maximum number of results
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Job"
+
+    post:
+      summary: Create job
+      description: Create a new scheduled job
+      operationId: createJob
+      tags:
+        - Jobs
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "201":
+          description: Job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: Job name already exists
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/jobs/{id}:
+    get:
+      summary: Get job
+      description: Get a specific job by ID
+      operationId: getJob
+      tags:
+        - Jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    put:
+      summary: Update job
+      description: Update an existing job
+      operationId: updateJob
+      tags:
+        - Jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job UUID
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJobRequest"
+      responses:
+        "200":
+          description: Job updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    delete:
+      summary: Delete job
+      description: Delete a job and all its runs
+      operationId: deleteJob
+      tags:
+        - Jobs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Job UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Job deleted successfully
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/v1/runs:
+    get:
+      summary: List runs
+      description: Get a list of job runs with optional filtering
+      operationId: listRuns
+      tags:
+        - Runs
+      parameters:
+        - name: job_id
+          in: query
+          description: Filter runs for specific job
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          description: Filter by run status
+          schema:
+            type: string
+            enum: [scheduled, running, succeeded, failed, timed_out, cancelled]
+        - name: limit
+          in: query
+          description: Maximum number of results
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+        - name: offset
+          in: query
+          description: Number of results to skip
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: List of runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Run"
+
+  /api/v1/runs/{id}:
+    get:
+      summary: Get run
+      description: Get a specific run by ID
+      operationId: getRun
+      tags:
+        - Runs
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Run UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Run details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Run"
+        "404":
+          description: Run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  schemas:
+    Job:
+      type: object
+      required:
+        - id
+        - name
+        - cron_expr
+        - command
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique job identifier
+        name:
+          type: string
+          description: Human-readable job name (must be unique)
+        description:
+          type: string
+          description: Optional job description
+        cron_expr:
+          type: string
+          description: Cron expression defining schedule
+          example: "*/5 * * * *"
+        command:
+          type: string
+          description: Command to execute
+          example: "echo"
+        args:
+          type: array
+          items:
+            type: string
+          description: Command arguments
+          example: ["Hello", "World"]
+        env:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables
+          example: { "ENV_VAR": "value" }
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          description: Job status
+        max_retries:
+          type: integer
+          description: Maximum number of retries
+          default: 3
+        timeout:
+          type: string
+          description: Job timeout duration
+          example: "5m"
+        created_at:
+          type: string
+          format: date-time
+          description: Job creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Job last update timestamp
+        next_run_at:
+          type: string
+          format: date-time
+          description: Next scheduled run time
+
+    CreateJobRequest:
+      type: object
+      required:
+        - name
+        - cron_expr
+        - command
+      properties:
+        name:
+          type: string
+          description: Human-readable job name (must be unique)
+        description:
+          type: string
+          description: Optional job description
+        cron_expr:
+          type: string
+          description: Cron expression defining schedule
+          example: "*/5 * * * *"
+        command:
+          type: string
+          description: Command to execute
+          example: "echo"
+        args:
+          type: array
+          items:
+            type: string
+          description: Command arguments
+          example: ["Hello", "World"]
+        env:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables
+          example: { "ENV_VAR": "value" }
+        max_retries:
+          type: integer
+          description: Maximum number of retries
+          default: 3
+        timeout:
+          type: string
+          description: Job timeout duration
+          example: "5m"
+
+    UpdateJobRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Human-readable job name
+        description:
+          type: string
+          description: Optional job description
+        cron_expr:
+          type: string
+          description: Cron expression defining schedule
+        command:
+          type: string
+          description: Command to execute
+        args:
+          type: array
+          items:
+            type: string
+          description: Command arguments
+        env:
+          type: object
+          additionalProperties:
+            type: string
+          description: Environment variables
+        status:
+          type: string
+          enum: [active, inactive, archived]
+          description: Job status
+        max_retries:
+          type: integer
+          description: Maximum number of retries
+        timeout:
+          type: string
+          description: Job timeout duration
+
+    Run:
+      type: object
+      required:
+        - id
+        - job_id
+        - status
+        - attempt_num
+        - scheduled_at
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique run identifier
+        job_id:
+          type: string
+          format: uuid
+          description: Parent job identifier
+        status:
+          type: string
+          enum: [scheduled, running, succeeded, failed, timed_out, cancelled]
+          description: Run status
+        attempt_num:
+          type: integer
+          description: Attempt number for this run
+        scheduled_at:
+          type: string
+          format: date-time
+          description: When the run was scheduled
+        started_at:
+          type: string
+          format: date-time
+          description: When the run started execution
+        finished_at:
+          type: string
+          format: date-time
+          description: When the run finished execution
+        output:
+          type: string
+          description: Command output
+        error_msg:
+          type: string
+          description: Error message if run failed
+        created_at:
+          type: string
+          format: date-time
+          description: Run creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Run last update timestamp
+
+    Error:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Error message
+
+tags:
+  - name: Jobs
+    description: Job management operations
+  - name: Runs
+    description: Run history and monitoring
+  - name: System
+    description: System health and status
