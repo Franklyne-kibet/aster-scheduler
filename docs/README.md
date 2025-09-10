@@ -56,7 +56,7 @@ The fastest way to get started is with Docker:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Franklyne-kibet/aster-scheduler.git
 cd aster-scheduler
 
 # Copy environment configuration

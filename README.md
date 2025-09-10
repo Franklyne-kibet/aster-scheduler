@@ -9,14 +9,26 @@ A distributed, fault-tolerant job scheduler built with Go. Schedule and execute 
 
 ## Table of Contents
 
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Usage Examples](#usage-examples)
-- [API Reference](#api-reference)
-- [Configuration](#configuration)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [License](#license)
+- [Aster Scheduler](#aster-scheduler)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Architecture](#architecture)
+  - [Quick Start](#quick-start)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Verify Installation](#verify-installation)
+  - [Usage Examples](#usage-examples)
+    - [Basic Job Creation](#basic-job-creation)
+    - [Job with Environment Variables](#job-with-environment-variables)
+    - [Monitoring Job Execution](#monitoring-job-execution)
+  - [API Reference](#api-reference)
+    - [Job Management](#job-management)
+    - [Run Management](#run-management)
+    - [System](#system)
+  - [Configuration](#configuration)
+  - [Documentation](#documentation)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Features
 
@@ -51,7 +63,7 @@ All components communicate through a PostgreSQL database, providing fault tolera
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/Franklyne-kibet/aster-scheduler.git
 cd aster-scheduler
 
 # Copy environment configuration

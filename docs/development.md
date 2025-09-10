@@ -11,7 +11,7 @@
 
 ```bash
 # Clone and setup
-git clone <repository-url>
+git clone https://github.com/Franklyne-kibet/aster-scheduler.git
 cd aster-scheduler
 cp env.example .env
 
