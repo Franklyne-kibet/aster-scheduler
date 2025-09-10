@@ -5,22 +5,16 @@
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go)](https://golang.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13+-336791?logo=postgresql)](https://www.postgresql.org/)
 
-A distributed, fault-tolerant task scheduler with cron semantics, retries, job dependencies, and horizontally scalable worker pools.
+A distributed, fault-tolerant job scheduler built with Go. Schedule and execute tasks using cron expressions with horizontal scaling, retry logic, and comprehensive monitoring.
 
 ## Table of Contents
 
 - [Features](#features)
-- [Architecture](#architecture)
-- [System Flow](#system-flow)
-- [Flow Phases](#flow-phases)
-- [Data Models](#data-models)
 - [Quick Start](#quick-start)
-- [API Reference](#api-reference)
 - [Usage Examples](#usage-examples)
+- [API Reference](#api-reference)
 - [Configuration](#configuration)
-- [Development](#development)
-- [Operational Concerns](#operational-concerns)
-- [Security Considerations](#security-considerations)
+- [Documentation](#documentation)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -33,246 +27,50 @@ A distributed, fault-tolerant task scheduler with cron semantics, retries, job d
 - **Execution tracking** - Complete history of job runs
 - **Timeout support** - Per-job execution timeouts
 - **Environment variables** - Custom environment per job
+- **Docker support** - Containerized deployment with docker-compose
 - **High performance** - Built with Go for speed and concurrency
 
 ## Architecture
 
-Aster Scheduler follows a microservices architecture with three main components that work together to provide a robust, scalable job scheduling system.
+Aster Scheduler consists of three main components:
 
-### Components
+- **API Server** - REST API for job management and monitoring
+- **Scheduler** - Monitors jobs and creates scheduled runs based on cron expressions
+- **Worker** - Executes scheduled jobs and updates run status
 
-- **API Server** (`aster-api`) - REST API for job management
-- **Scheduler** (`aster-scheduler`) - Monitors jobs and creates scheduled runs
-- **Worker** (`aster-worker`) - Executes scheduled jobs
-
-## System Flow
-
-```text
-┌─────────────────┐    ┌──────────────┐    ┌─────────────────┐
-│                 │    │              │    │                 │
-│   API CLIENT    │    │  API SERVER  │    │    DATABASE     │
-│                 │    │   :8080      │    │   (PostgreSQL)  │
-└─────────────────┘    └──────────────┘    └─────────────────┘
-         │                       │                    │
-         │ 1. POST /jobs         │                    │
-         ├──────────────────────►│                    │
-         │                       │ 2. INSERT job      │
-         │                       ├───────────────────►│
-         │                       │                    │
-         │ 3. Job created (201)  │                    │
-         | ◄─────────────────────┤                    │
-         │                       │                    │
-                                                      │
-┌─────────────────┐    ┌──────────────┐               │
-│                 │    │              │               │
-│   SCHEDULER     │    │   JobStore   │               │
-│  (every 30s)    │    │              │               │
-└─────────────────┘    └──────────────┘               │
-         │                       │                    │
-         │ 4. Check due jobs     │                    │
-         ├──────────────────────►│                    │
-         │                       │ 5. SELECT jobs     │
-         │                       │    WHERE next_run  │
-         │                       │    <= NOW()        │
-         │                       ├───────────────────►│
-         │                       │                    │
-         │ 6. Due jobs []        │ 7. Return jobs     │
-          ◄──────────────────────┤ ◄──────────────────┤
-         │                       │                    │
-         │ 8. For each job:      │                    │
-         │    - Create Run       │                    │
-         │    - Update next_run  │                    │
-         │                       │                    │
-                                                      │
-┌─────────────────┐    ┌──────────────┐               │
-│                 │    │              │               │
-│    RunStore     │    │    WORKER    │               │
-│                 │    │  (every 5s)  │               │
-└─────────────────┘    └──────────────┘               │
-         │                       │                    │
-         │ 9. INSERT run         │                    │
-         ◄──────────────────────┤                     │
-         │    (status=scheduled) │                    │
-         ├───────────────────────┼───────────────────►│
-         │                       │                    │
-         │10. Poll scheduled     │                    │
-         │    runs               │                    │
-         ├──────────────────────►│                    │
-         │                       │11. SELECT runs     │
-         │                       │    WHERE status    │
-         │                       │    = 'scheduled'   │
-         │                       ├───────────────────►│
-         │                       │                    │
-         │12. Scheduled runs []  │13. Return runs     │
-          ◄──────────────────────┤◄───────────────────┤
-         │                       │                    │
-         │14. For each run:      │                    │
-         │    - Mark as running  │                    │
-         │    - Execute job      │                    │
-         │    - Mark finished    │                    │
-         │                       │                    │
-                                                      │
-┌─────────────────┐    ┌──────────────┐               │
-│                 │    │              │               │
-│   EXECUTOR      │    │  OS COMMAND  │               │
-│                 │    │              │               │
-└─────────────────┘    └──────────────┘               │
-         │                       │                    │
-         │15. exec.Command(...)  │                    │
-         ├──────────────────────►│                    │
-         │                       │ 16. Run command    │
-         │                       │     with args/env  │
-         │                       │                    │
-         │17. Output + Status    │                    │
-          ◄──────────────────────┤                    │
-         │                       │                    │
-         │18. Update run status  │                    │
-         │    and output         │                    │
-         ├───────────────────────┼───────────────────►│
-         │                       │                    │
-```
-
-## Flow Phases
-
-### Phase 1: Job Creation
-
-1. **Client** → **API**: `POST /api/v1/jobs` (with cron expression, command, etc.)
-2. **API** → **Database**: Insert job into `jobs` table
-3. **API** → **Client**: Return created job with ID
-
-### Phase 2: Job Scheduling (Every 30 seconds)
-
-1. **Scheduler** → **Database**: Query for due jobs (`next_run_at <= NOW()`)
-2. **Scheduler** → **Database**: For each due job:
-   - Insert record into `runs` table (status = "scheduled")
-   - Update job's `next_run_at` based on cron expression
-
-### Phase 3: Job Execution (Every 5 seconds)
-
-1. **Worker** → **Database**: Query for scheduled runs (`status = 'scheduled'`)
-2. **Worker** → **Database**: Mark run as "running"
-3. **Worker** → **Executor**: Execute job command
-4. **Executor** → **OS**: Run system command with args/env
-5. **Executor** → **Worker**: Return output and exit status
-6. **Worker** → **Database**: Update run status (succeeded/failed) and output
-
-## Data Models
-
-### Job Structure
-
-```json
-{
-  "id": "uuid",
-  "name": "unique_job_name",
-  "description": "Job description",
-  "cron_expr": "0 */10 * * *",
-  "command": "echo",
-  "args": ["Hello", "World"],
-  "env": {"ENV_VAR": "value"},
-  "status": "active",
-  "max_retries": 3,
-  "timeout": "5m",
-  "next_run_at": "2024-01-01T10:00:00Z"
-}
-```
-
-### Run Structure
-
-```json
-{
-  "id": "uuid",
-  "job_id": "uuid",
-  "status": "succeeded",
-  "attempt_num": 1,
-  "scheduled_at": "2024-01-01T10:00:00Z",
-  "started_at": "2024-01-01T10:00:01Z",
-  "finished_at": "2024-01-01T10:00:05Z",
-  "output": "Hello World\n",
-  "error_msg": null
-}
-```
+All components communicate through a PostgreSQL database, providing fault tolerance and scalability.
 
 ## Quick Start
 
 ### Prerequisites
 
-Before setting up Aster Scheduler, ensure you have the following installed on your system:
+- Docker and Docker Compose
+- Make (optional, for using Makefile commands)
 
-- Go 1.21 or later
-- PostgreSQL 13 or later
-- Docker (optional, for containerized setup)
-- Make (for using the provided Makefile)
-
-### Installation and Setup
-
-#### Option 1: Automated Setup
-
-For the quickest way to get started, use the automated setup process:
+### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/aster-scheduler.git
+git clone <repository-url>
 cd aster-scheduler
 
-# Copy and configure environment variables
-cp .env.example .env
-# Edit .env file with your database settings
+# Copy environment configuration
+cp env.example .env
 
-# Set up database and run complete demo
-make setup-db
-make migrate
+# Start all services
 make full-demo
 ```
 
-#### Option 2: Manual Setup
+This will start all services and run a complete demonstration of the system.
 
-For more control over the setup process:
-
-### Step 1: Database Setup
-
-```bash
-# Start PostgreSQL (if not already running)
-sudo systemctl start postgresql
-
-# Create database and user
-createdb aster
-createuser -P aster_user
-```
-
-### Step 2: Configuration
-
-```bash
-# Set environment variables
-export DATABASE_URL="postgres://aster_user:password@localhost:5432/aster?sslmode=disable"
-export API_PORT=8080
-export LOG_LEVEL=info
-```
-
-### Step 3: Build and Run
-
-```bash
-# Build all components
-make build
-
-# Run database migrations
-./bin/aster-migrate
-
-# Start services (in separate terminals)
-./bin/aster-api      # Terminal 1
-./bin/aster-scheduler # Terminal 2
-./bin/aster-worker   # Terminal 3
-```
-
-### Verification
-
-Once all components are running, verify the system is working:
+### Verify Installation
 
 ```bash
 # Check API health
-curl http://localhost:8080/health
+curl http://localhost:8081/health
 
 # Create a test job
-curl -X POST http://localhost:8080/api/v1/jobs \
+curl -X POST http://localhost:8081/api/v1/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "name": "test_job",
@@ -281,85 +79,22 @@ curl -X POST http://localhost:8080/api/v1/jobs \
     "command": "echo",
     "args": ["Hello from Aster!"]
   }'
+
+# List jobs
+curl http://localhost:8081/api/v1/jobs
+
+# List runs (after waiting ~65 seconds)
+curl http://localhost:8081/api/v1/runs
 ```
-
-## API Reference
-
-The REST API provides comprehensive job and run management capabilities. All endpoints return JSON responses and use standard HTTP status codes.
-
-### Job Management Endpoints
-
-#### Create Job
-
-- **POST** `/api/v1/jobs`
-- **Description**: Create a new scheduled job
-- **Request Body**: Job object with name, cron_expr, command, and optional fields
-- **Response**: 201 Created with job object, or 400 Bad Request for validation errors
-
-#### List Jobs
-
-- **GET** `/api/v1/jobs`
-- **Description**: Retrieve all jobs with optional filtering
-- **Query Parameters**:
-  - `status` (optional): Filter by job status
-  - `limit` (optional): Limit number of results (default: 100)
-  - `offset` (optional): Skip number of results (default: 0)
-- **Response**: 200 OK with array of job objects
-
-#### Get Job
-
-- **GET** `/api/v1/jobs/{id}`
-- **Description**: Retrieve specific job by ID
-- **Response**: 200 OK with job object, or 404 Not Found
-
-#### Update Job
-
-- **PUT** `/api/v1/jobs/{id}`
-- **Description**: Update existing job
-- **Request Body**: Partial or complete job object
-- **Response**: 200 OK with updated job object, or 404 Not Found
-
-### Delete Job
-
-- **DELETE** `/api/v1/jobs/{id}`
-- **Description**: Remove job and all associated runs
-- **Response**: 204 No Content, or 404 Not Found
-
-### Run Management Endpoints
-
-#### List Runs
-
-- **GET** `/api/v1/runs`
-- **Description**: Retrieve execution history
-- **Query Parameters**:
-  - `job_id` (optional): Filter runs for specific job
-  - `status` (optional): Filter by run status
-  - `limit` (optional): Limit results (default: 100)
-  - `offset` (optional): Skip results (default: 0)
-- **Response**: 200 OK with array of run objects
-
-#### Get Run
-
-- **GET** `/api/v1/runs/{id}`
-- **Description**: Retrieve specific run details
-- **Response**: 200 OK with run object, or 404 Not Found
-
-### System Endpoints
-
-#### Health Check
-
-- **GET** `/health`
-- **Description**: System health status
-- **Response**: 200 OK with health information
 
 ## Usage Examples
 
 ### Basic Job Creation
 
-Create a simple job that runs every hour:
+Create a job that runs every hour:
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/jobs \
+curl -X POST http://localhost:8081/api/v1/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "name": "hourly_cleanup",
@@ -371,12 +106,10 @@ curl -X POST http://localhost:8080/api/v1/jobs \
   }'
 ```
 
-### Advanced Job with Environment
-
-Create a job with custom environment variables and retry logic:
+### Job with Environment Variables
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/jobs \
+curl -X POST http://localhost:8081/api/v1/jobs \
   -H "Content-Type: application/json" \
   -d '{
     "name": "api_healthcheck",
@@ -395,232 +128,80 @@ curl -X POST http://localhost:8080/api/v1/jobs \
 
 ### Monitoring Job Execution
 
-Check job execution history:
-
 ```bash
-# List all recent runs
-curl "http://localhost:8080/api/v1/runs?limit=10"
+# List all jobs
+curl http://localhost:8081/api/v1/jobs
 
-# Check runs for specific job
-curl "http://localhost:8080/api/v1/runs?job_id=550e8400-e29b-41d4-a716-446655440000"
+# Get runs for a specific job
+curl "http://localhost:8081/api/v1/runs?job_id=550e8400-e29b-41d4-a716-446655440000"
 
-# Get detailed run information
-curl "http://localhost:8080/api/v1/runs/660f9511-f3ac-52e5-b827-557766551111"
+# Get recent runs
+curl "http://localhost:8081/api/v1/runs?limit=10"
 ```
+
+## API Reference
+
+### Job Management
+
+- **POST** `/api/v1/jobs` - Create a new job
+- **GET** `/api/v1/jobs` - List all jobs
+- **GET** `/api/v1/jobs/{id}` - Get specific job
+- **PUT** `/api/v1/jobs/{id}` - Update job
+- **DELETE** `/api/v1/jobs/{id}` - Delete job
+
+### Run Management
+
+- **GET** `/api/v1/runs` - List execution history
+- **GET** `/api/v1/runs/{id}` - Get specific run details
+
+### System
+
+- **GET** `/health` - Health check endpoint
+
+For detailed API documentation, see [docs/api-reference.md](docs/api-reference.md).
 
 ## Configuration
 
-Aster Scheduler uses environment variables for configuration, allowing easy deployment across different environments.
-
-### Database Configuration
+Aster Scheduler uses environment variables for configuration. Copy `env.example` to `.env` and modify as needed:
 
 ```bash
-# Primary database connection
-DATABASE_URL=postgres://username:password@hostname:5432/database?sslmode=disable
-
-# Alternative individual settings
-POSTGRES_HOST=localhost
+# Database configuration
+POSTGRES_HOST=postgres
 POSTGRES_PORT=5432
-POSTGRES_USER=aster_user
-POSTGRES_PASSWORD=secure_password
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
 POSTGRES_DB=aster
-POSTGRES_SSL_MODE=disable
-```
 
-### Service Configuration
-
-```bash
-# API Server settings
+# API configuration
 API_PORT=8080
-API_HOST=0.0.0.0
-
-# Scheduler settings
-SCHEDULER_INTERVAL=30s
-
-# Worker settings
-WORKER_POLL_INTERVAL=5s
-WORKER_CONCURRENT_JOBS=5
-
-# Logging
+API_EXTERNAL_PORT=8081
 LOG_LEVEL=info
-LOG_FORMAT=json
+
+# Worker configuration
+WORKER_POOL_SIZE=5
 ```
 
-### Timeout and Retry Settings
+For detailed configuration options, see [docs/configuration.md](docs/configuration.md).
 
-```bash
-# Default job timeout (can be overridden per job)
-DEFAULT_JOB_TIMEOUT=10m
+## Documentation
 
-# Default retry attempts
-DEFAULT_MAX_RETRIES=3
+Comprehensive documentation is available in the `docs/` directory:
 
-# Database connection timeout
-DB_TIMEOUT=30s
-```
-
-## Development
-
-### Development Environment Setup
-
-Setting up a development environment for contributing to Aster Scheduler:
-
-```bash
-# Clone and setup
-git clone https://github.com/yourusername/aster-scheduler.git
-cd aster-scheduler
-
-# Install development dependencies
-go mod download
-go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-
-# Setup development database
-make setup-dev-db
-
-# Run in development mode
-make dev
-```
-
-### Available Make Targets
-
-The Makefile provides convenient commands for common development tasks:
-
-#### Build and Run
-
-- `make build` - Build all service binaries
-- `make migrate` - Apply database migrations
-- `make setup-db` - Initialize development database
-- `make run-demo` - Run basic functionality demo
-- `make full-demo` - Run comprehensive system demo
-- `make clean` - Remove build artifacts and containers
-
-#### Testing
-
-- `make test` - Run the complete test suite
-- `make test-coverage` - Run tests with coverage report and HTML output
-
-#### Code Quality and Formatting
-
-- `make format` - Format Go code using `go fmt` and `goimports`
-- `make check-format` - Check if code is properly formatted (CI-friendly)
-- `make vet` - Run `go vet` for code correctness
-- `make tidy` - Clean up `go.mod` and `go.sum`
-- `make quality` - Run format + vet + tidy (quick quality check)
-- `make pre-commit` - Run format + quality + tests (before committing)
-
-#### Development Workflows
-
-- `make dev` - Complete development workflow (format + migrate + test + build + demo)
-
-#### Individual Services
-
-- `make run-api` - Start the API server
-- `make run-scheduler` - Start the scheduler
-- `make run-worker` - Start a worker
-
-### Code Formatting and Quality
-
-The project follows strict Go formatting standards and provides automated tools to maintain code quality:
-
-#### Formatting Your Code
-
-```bash
-# Format all Go code (runs go fmt + goimports)
-make format
-
-# Check if code is properly formatted (useful for CI)
-make check-format
-
-# Run go vet for code correctness
-make vet
-
-# Clean up go.mod and go.sum
-make tidy
-
-# Run all quality checks at once
-make quality
-```
-
-#### Pre-commit Workflow
-
-```bash
-# Run formatting, quality checks, and tests before committing
-make pre-commit
-```
-
-#### Formatting Standards
-
-The project uses:
-
-- **`go fmt`** - Standard Go formatting (indentation, spacing, braces)
-- **`goimports`** - Automatic import organization (standard → third-party → local)
-- **`go vet`** - Static analysis for common Go issues
-- **`go mod tidy`** - Clean and organize module dependencies
-
-#### CI Integration
-
-For continuous integration, use `make check-format` which will:
-
-- Exit with code 0 if all files are properly formatted
-- Exit with code 1 and list problematic files if formatting is needed
-- Automatically install required tools if missing
-
-## Operational Concerns
-
-### Context and Cancellation
-
-Aster Scheduler implements comprehensive context handling for robust operation. All long-running operations respect context cancellation, enabling graceful shutdowns and preventing resource leaks. Job executions can be cancelled through timeouts, and the system responds appropriately to shutdown signals.
-
-### Fault Tolerance
-
-The system is designed with fault tolerance as a primary concern. Each component can restart independently without affecting the others, since all state is persisted in PostgreSQL. Failed jobs are automatically retried based on their configuration, and one job's failure doesn't impact other scheduled work.
-
-### Performance and Scaling
-
-For production deployments, consider these scaling strategies:
-
-**Horizontal Worker Scaling**: Deploy multiple worker instances to handle increased job volume. Workers coordinate through the database to prevent duplicate execution.
-
-**Scheduler Optimization**: Adjust the scheduler interval based on your timing requirements. More frequent checks provide better precision but increase database load.
-
-**Database Optimization**: Use connection pooling and appropriate PostgreSQL configuration for your workload. Consider read replicas for read-heavy monitoring operations.
-
-**Resource Management**: Set appropriate timeouts and resource limits for jobs to prevent resource exhaustion. Monitor system resources and scale accordingly.
-
-### Monitoring and Observability
-
-Implement proper monitoring for production deployments:
-
-- Monitor component health endpoints
-- Track job success/failure rates
-- Alert on stuck or repeatedly failing jobs
-- Monitor database performance and connection usage
-- Set up log aggregation for troubleshooting
-
-## Security Considerations
-
-When deploying Aster Scheduler in production environments, consider these security aspects:
-
-- Secure database connections with SSL and proper authentication
-- Limit command execution capabilities through system-level controls
-- Validate job commands and arguments to prevent injection attacks
-- Use network segmentation to isolate scheduler components
-- Implement proper access controls for the REST API
-- Regularly update dependencies and base images
+- **[Architecture Guide](docs/architecture.md)** - System design and component interactions
+- **[Development Guide](docs/development.md)** - Setup, building, and contributing
+- **[API Reference](docs/api-reference.md)** - Complete REST API documentation
+- **[Deployment Guide](docs/deployment.md)** - Production deployment and operations
+- **[Configuration Reference](docs/configuration.md)** - Environment variables and settings
 
 ## Contributing
 
-We welcome contributions to Aster Scheduler. To contribute effectively:
+We welcome contributions! Please see the [Development Guide](docs/development.md) for:
 
-1. **Fork the repository** and create a feature branch from main
-2. **Follow the coding standards** established in the project
-3. **Add comprehensive tests** for any new functionality
-4. **Update documentation** for user-facing changes
-5. **Run the full test suite** and ensure all checks pass
-6. **Submit a pull request** with a clear description of changes
-
-Please review the existing code and tests to understand the patterns and conventions used in the project.
+- Setting up a development environment
+- Coding standards and quality requirements
+- Testing guidelines
+- Pull request process
 
 ## License
 
-This project is licensed under the Apache License. See the LICENSE file for complete license terms and conditions.
+This project is licensed under the Apache License 2.0. See the [LICENSE](LICENSE) file for details.
