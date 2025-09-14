@@ -76,9 +76,9 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	select {
-	case sig := <- quit:
+	case sig := <-quit:
 		logger.Info("Worker shutting down...", zap.String("signal", sig.String()))
-	case err := <- workerErrCh:
+	case err := <-workerErrCh:
 		logger.Fatal("Worker failed", zap.Error(err))
 	}
 
